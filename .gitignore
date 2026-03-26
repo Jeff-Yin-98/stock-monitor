@@ -1,0 +1,23 @@
+# Config files with user data
+config.ini
+temp_config.ini
+
+# State and logs
+state.json
+monitor.log
+daily_pick.log
+review.log
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# IDE
+.vscode/
+.idea/
+
+# Output files
+/tmp/
+*.log

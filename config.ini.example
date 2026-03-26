@@ -1,0 +1,38 @@
+# 股票监控配置文件模板
+# 复制为 config.ini 并修改参数
+
+[stock]
+# 监控的股票代码和名称
+code = sh600021
+name = 示例股票
+
+[alert]
+# 涨跌幅度阈值（百分比）
+change_threshold = 1.0
+# 目标价格提醒（留空禁用）
+target_low = 
+target_high = 
+
+[indicators]
+# 均线周期
+ma_fast = 5
+ma_slow = 10
+ma_trend = 20
+
+# RSI参数
+rsi_period = 14
+rsi_oversold = 30
+rsi_overbought = 70
+
+# KDJ参数
+kdj_n = 9
+kdj_oversold = 20
+kdj_overbought = 80
+
+# 布林带参数
+boll_period = 20
+boll_std = 2.0
+
+[schedule]
+# 监控时间（cron格式）
+cron = */5 9-15 * * 1-5
