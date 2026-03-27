@@ -115,6 +115,15 @@ def calc_boll(c, n=20):
     std = np.std(c[-n:])
     return ma, ma + 2*std, ma - 2*std
 
+def calc_cci(hi, lo, cl, n=20):
+    """CCI商品通道指数"""
+    if len(cl) < n: return None
+    tp = (hi[-n:] + lo[-n:] + cl[-n:]) / 3
+    ma_tp = np.mean(tp)
+    md = np.mean(np.abs(tp - ma_tp))
+    if md == 0: return 0
+    return (tp[-1] - ma_tp) / (0.015 * md)
+
 def analyze(code, name):
     try:
         df = get_price(code, frequency='1d', count=60)
@@ -135,6 +144,7 @@ def analyze(code, name):
         k, d, j, pk, pd = calc_kdj(h, l, c)
         willr = calc_willr(h, l, c)
         boll_mid, boll_up, boll_low = calc_boll(c)
+        cci = calc_cci(h, l, c)
         if not all([ma5, ma10, ma20, rsi, k]): return None
         
         signals, score = [], 0
@@ -147,6 +157,10 @@ def analyze(code, name):
         elif willr and willr < -70: score += 1
         # 布林带
         if boll_low and close < boll_low: signals.append('布林下轨'); score += 2
+        # CCI指标
+        if cci:
+            if cci < -200: signals.append('CCI极度超卖'); score += 3
+            elif cci < -100: signals.append('CCI超卖'); score += 2
         if len(c) > 1 and c[-2] < ma5 and close > ma5: signals.append('突破MA5'); score += 1
         vol5, vol20 = np.mean(v[-5:]), np.mean(v[-20:])
         if vol5 > vol20 * 1.3: signals.append('放量'); score += 1
@@ -154,10 +168,45 @@ def analyze(code, name):
         if j < 0: signals.append('J<0'); score += 1
         
         if score < 3: return None
-        result = {'code': code, 'name': name, 'close': round(close,2), 'rsi': round(rsi,1), 
-                'k': round(k,1), 'd': round(d,1), 'signals': signals, 'score': score}
+        
+        # === 计算挂单价、止盈、止损 ===
+        # 次日挂单价：收盘价附近，留出一点空间
+        buy_price = round(close * 0.99, 2)  # 比收盘价低1%挂单
+        
+        # 止损位：根据信号强度和技术位设定
+        # - 找最近5日最低价作为止损参考
+        # - 或用布林下轨
+        recent_low = min(l[-5:])
+        stop_loss = round(min(recent_low, boll_low if boll_low else recent_low) * 0.98, 2)
+        
+        # 止盈位：根据评分设定
+        # 评分>=7: 两档止盈 (5%/10%)
+        # 评分5-6: 单档止盈 (5%)
+        if score >= 7:
+            take_profit_1 = round(close * 1.05, 2)  # 第一档：5%
+            take_profit_2 = round(close * 1.10, 2)  # 第二档：10%
+        else:
+            take_profit_1 = round(close * 1.05, 2)
+            take_profit_2 = None
+        
+        result = {
+            'code': code, 
+            'name': name, 
+            'close': round(close, 2), 
+            'rsi': round(rsi, 1), 
+            'k': round(k, 1), 
+            'd': round(d, 1), 
+            'signals': signals, 
+            'score': score,
+            'buy_price': buy_price,
+            'stop_loss': stop_loss,
+            'take_profit_1': take_profit_1,
+            'take_profit_2': take_profit_2,
+            'risk_reward': round((take_profit_1 - buy_price) / (buy_price - stop_loss), 2) if buy_price != stop_loss else 0
+        }
         if willr: result['willr'] = round(willr, 1)
         if boll_low: result['boll_low'] = round(boll_low, 2)
+        if cci: result['cci'] = round(cci, 1)
         return result
     except: return None
 
